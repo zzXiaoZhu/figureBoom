@@ -1,0 +1,5 @@
+pyautogui
+pygame
+pypiwin32
+plyer
+psutil
