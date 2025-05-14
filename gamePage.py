@@ -1,3 +1,4 @@
+import sys
 import time
 
 import pygame
@@ -28,8 +29,15 @@ def gameRecovery():
 # 注意：此处mousePress只支持左键右键(mousePress = [MouseLeft, MouseRight])
 def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis):
     global displayBoomY, scroll_v, scroll_start_y, disappearBoom
-    gameSurface = pygame.surface.Surface((defaultWindowSize[0], defaultWindowSize[1] - defaultWindowHead))
+    gameSurface = pygame.surface.Surface((width, height))
     gameSurface.blit(gamePageBackground, (0, 0))
+
+    # 计算雷的间距\行数
+    boomDistanceX = (width - boomLeftMargin - boomRightMargin - boomSize[0] * boomLine_num) / (boomLine_num - 1)
+    boomDistanceY = (height - boomSize[1] * boomRow_num) / (boomRow_num - 1)
+    displayLineNum = boomNum // boomLine_num
+    if (boomNum - boomLine_num * displayLineNum > 0):
+        displayLineNum += 1
 
     # 处理事件
     mouseClick = False
@@ -43,17 +51,15 @@ def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis):
             if mousePos[1] > 0:
                 mouseClick = True
 
-    game.boomY += scroll_x * scroll_y
+    # 如果不止一页就可以滑动
+    if (boomSize[1] + boomDistanceY) * displayLineNum > height:
+        game.boomY += scroll_x * scroll_y
 
-    # 限制滚动区间
-    displayLineNum = boomNum // boomLine_num
-    if (boomNum - boomLine_num * displayLineNum > 0):
-        displayLineNum += 1
-
-    if game.boomY > 0:
-        game.boomY = 0
-    elif game.boomY < -(displayLineNum * boomSize[1] - height + boomSize[1] * 1.2):
-        game.boomY = -(displayLineNum * boomSize[1] - height + boomSize[1] * 1.2)
+        # 限制滚动区间
+        if game.boomY > 0:
+            game.boomY = 0
+        elif game.boomY < -(displayLineNum * boomSize[1] + displayLineNum * boomDistanceY - height):
+            game.boomY = -(displayLineNum * boomSize[1] + displayLineNum * boomDistanceY - height)
 
     # 及时更新方向
     if scroll_start_y == game.boomY:
@@ -65,7 +71,7 @@ def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis):
         scroll_v = scroll_min_v
         scroll_start_y = None
     else:
-        if (scroll_start_y is not None) and (abs(displayBoomY - game.boomY) / abs(scroll_start_y - game.boomY) < 0.5):
+        if (scroll_start_y is not None) and (abs(displayBoomY - game.boomY) / abs(scroll_start_y - game.boomY) < 0.1):
             scroll_v -= scroll_a * (timeDis / 1000)
             if scroll_min_v is not None:
                 if scroll_v < scroll_min_v:
@@ -83,52 +89,61 @@ def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis):
         displayBoomY += scroll_v * (timeDis / 1000)
 
     # 显示雷\获取鼠标所在的雷
-    boomDistanceX = (width - boomLeftMargin - boomRightMargin - boomSize[0] * boomLine_num) / (boomLine_num - 1)
-    boomDistanceY = (height - boomSize[1] * boomRow_num) / (boomRow_num - 1)
     tempX = boomLeftMargin
     tempY = displayBoomY
+    tempLineNum = 0
     mouseOnBoom = None
     for i in range(1, boomNum + 1):
+        # 不在屏幕内不渲染
+        Display = True
+        if tempX < 0 - boomSize[0] or tempX > width:
+            Display = False
+        if tempY < 0 - boomSize[1] or tempY > height:
+            Display = False
+
         # 显示常驻雷、计算鼠标所在雷
-        if i in game.boomList:
-            gameSurface.blit(boomImage, (tempX, tempY))
-            tempNumText = numFont.render(str(i), True, numColor)
-            gameSurface.blit(tempNumText, (tempX + boomImage.get_size()[0] / 2 - tempNumText.get_size()[0] * 0.6,
-                                           tempY + boomImage.get_size()[1] / 2 - tempNumText.get_size()[1] * 0.4))
-            if tempX < mousePos[0] < tempX + boomSize[0] and tempY < mousePos[1] < tempY + boomSize[1] and mousePos[1] > 0:
-                mouseOnBoom = i
-        else:
-            for j in disappearBoom:
-                if i == j['boomID']:
-                    # 计算函数关系
-                    temp = (time.time() - j['boomTime']) / boomAniTime
-                    tempSize = (-2.3 * (temp ** 2)) + (1.3 * temp) + 1
-                    if 0 < tempSize < 1:
-                        tempSize = tempSize ** 2
+        if Display:
+            if i in game.boomList:
+                gameSurface.blit(boomImage, (tempX, tempY))
+                tempNumText = numFont.render(str(i), True, numColor)
+                gameSurface.blit(tempNumText, (tempX + boomImage.get_size()[0] / 2 - tempNumText.get_size()[0] * 0.6,
+                                               tempY + boomImage.get_size()[1] / 2 - tempNumText.get_size()[1] * 0.4))
+                if tempX < mousePos[0] < tempX + boomSize[0] and tempY < mousePos[1] < tempY + boomSize[1] and mousePos[1] > 0:
+                    mouseOnBoom = i
+            else:
+                for j in disappearBoom:
+                    if i == j['boomID']:
+                        # 计算函数关系
+                        temp = (time.time() - j['boomTime']) / boomAniTime
+                        tempSize = (-2.3 * (temp ** 2)) + (1.3 * temp) + 1
+                        if 0 < tempSize < 1:
+                            tempSize = tempSize ** 2
 
-                    if tempSize > 2:
-                        sys.exit()
+                        if tempSize > 2:
+                            sys.exit()
 
-                    # Size为0不用画
-                    if tempSize > 0:
-                        # 创建雷的surface
-                        tempBoomImage = pygame.surface.Surface(boomSize)
-                        tempBoomImage.fill((0, 0, 0))
-                        tempBoomImage.set_colorkey((0, 0, 0))
-                        tempBoomImage.blit(boomImage, (0, 0))
-                        tempNumText = numFont.render(str(i), True, numColor)
-                        tempBoomImage.blit(tempNumText, (boomSize[0] / 2 - tempNumText.get_size()[0] * 0.6,
-                                                         boomSize[1] / 2 - tempNumText.get_size()[1] * 0.4))
-                        tempBoomImage = pygame.transform.scale(tempBoomImage, (boomSize[0] * tempSize, boomSize[1] * tempSize))
-                        tempBoomImage.set_colorkey((0, 0, 0))
+                        # Size为0不用画
+                        if tempSize > 0:
+                            # 创建雷的surface
+                            tempBoomImage = pygame.surface.Surface(boomSize)
+                            tempBoomImage.fill((0, 0, 0))
+                            tempBoomImage.set_colorkey((0, 0, 0))
+                            tempBoomImage.blit(boomImage, (0, 0))
+                            tempNumText = numFont.render(str(i), True, numColor)
+                            tempBoomImage.blit(tempNumText, (boomSize[0] / 2 - tempNumText.get_size()[0] * 0.6,
+                                                             boomSize[1] / 2 - tempNumText.get_size()[1] * 0.4))
+                            tempBoomImage = pygame.transform.scale(tempBoomImage, (boomSize[0] * tempSize, boomSize[1] * tempSize))
+                            tempBoomImage.set_colorkey((0, 0, 0))
 
-                        # 把雷显示出来
-                        gameSurface.blit(tempBoomImage, (tempX + boomSize[0] / 2 - tempBoomImage.get_size()[0] / 2,
-                                                         tempY + boomSize[1] / 2 - tempBoomImage.get_size()[0] / 2))
+                            # 把雷显示出来
+                            gameSurface.blit(tempBoomImage, (tempX + boomSize[0] / 2 - tempBoomImage.get_size()[0] / 2,
+                                                             tempY + boomSize[1] / 2 - tempBoomImage.get_size()[0] / 2))
 
         # 计算新坐标
-        tempX += boomSize[0] + boomDistanceX
-        if tempX + boomSize[0] > width - boomRightMargin:
+        tempLineNum += 1
+        tempX += (width - boomLeftMargin - boomRightMargin) / boomLine_num
+        if tempLineNum >= boomLine_num:
+            tempLineNum = 0
             tempX = boomLeftMargin
             tempY += boomSize[1] + boomDistanceY
 
