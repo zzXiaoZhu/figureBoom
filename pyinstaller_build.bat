@@ -1,1 +1,2 @@
-pyinstaller --noconfirm --onefile --windowed   --hidden-import plyer.platforms.win.notification --hidden-import plyer.platforms --hidden-import win10toast --icon "files/XiaoZhu.ico" --add-data "files;files/"  "main.py"
+pyinstaller --noconfirm --onefile --console --hidden-import plyer.platforms.win.notification --hidden-import plyer.platforms --hidden-import win10toast --icon "files/XiaoZhu.ico" --add-data "files;files/"  "main.py"
+pause

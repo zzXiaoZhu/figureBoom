@@ -18,16 +18,16 @@ scroll_start_y = None
 resultButtonClick = False
 
 
-def gameRecovery():
+def gameRecovery(boom=None):
     global game, displayBoomY, disappearBoom
-    game = Game()
+    game = Game(boom)
     disappearBoom = []
     displayBoomY = 0
     toast("雷是{}".format(game.Boom))
 
 
 # 注意：此处mousePress只支持左键右键(mousePress = [MouseLeft, MouseRight])
-def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis):
+def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis, DONT_MOVE=False):
     global displayBoomY, scroll_v, scroll_start_y, disappearBoom
     gameSurface = pygame.surface.Surface((width, height))
     gameSurface.blit(gamePageBackground, (0, 0))
@@ -108,7 +108,8 @@ def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis):
                 tempNumText = numFont.render(str(i), True, numColor)
                 gameSurface.blit(tempNumText, (tempX + boomImage.get_size()[0] / 2 - tempNumText.get_size()[0] * 0.6,
                                                tempY + boomImage.get_size()[1] / 2 - tempNumText.get_size()[1] * 0.4))
-                if tempX < mousePos[0] < tempX + boomSize[0] and tempY < mousePos[1] < tempY + boomSize[1] and mousePos[1] > 0:
+                if tempX < mousePos[0] < tempX + boomSize[0] and tempY < mousePos[1] < tempY + boomSize[1] and mousePos[
+                    1] > 0:
                     mouseOnBoom = i
             else:
                 for j in disappearBoom:
@@ -132,7 +133,8 @@ def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis):
                             tempNumText = numFont.render(str(i), True, numColor)
                             tempBoomImage.blit(tempNumText, (boomSize[0] / 2 - tempNumText.get_size()[0] * 0.6,
                                                              boomSize[1] / 2 - tempNumText.get_size()[1] * 0.4))
-                            tempBoomImage = pygame.transform.scale(tempBoomImage, (boomSize[0] * tempSize, boomSize[1] * tempSize))
+                            tempBoomImage = pygame.transform.scale(tempBoomImage,
+                                                                   (boomSize[0] * tempSize, boomSize[1] * tempSize))
                             tempBoomImage.set_colorkey((0, 0, 0))
 
                             # 把雷显示出来
@@ -148,8 +150,8 @@ def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis):
             tempY += boomSize[1] + boomDistanceY
 
     # 触发雷
-
-
+    if DONT_MOVE:
+        mouseClick = False
     BOOM = False
     boomID = None
     if mouseOnBoom is not None:
@@ -157,8 +159,8 @@ def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis):
             result = game.clickBoom(mouseOnBoom)
             for i in result['missing']:
                 disappearBoom.append({
-                    "boomID":i,
-                    "boomTime":time.time()
+                    "boomID": i,
+                    "boomTime": time.time()
                 })
 
             BOOM = result['boom']
@@ -171,17 +173,18 @@ def GAME_PAGE(width, height, mousePos, mousePress, event, timeDis):
             boomID = mouseOnBoom
 
     return {
-        "surface":pygame.transform.smoothscale(gameSurface, (width, height)),
-        "boom":BOOM,
-        "boomID":boomID
-        }
+        "surface": pygame.transform.smoothscale(gameSurface, (width, height)),
+        "boom": BOOM,
+        "boomID": boomID
+    }
 
 
 # 注意：此处mousePress只支持左键右键(mousePress = [MouseLeft, MouseRight])
-def Result_page(width, height, mousePos, mousePress, event, boomID):
+def Result_page(width, height, mousePos, mousePress, event, boomID, DONT_MOVE=False):
     global resultButtonClick
 
-    resultSurface = pygame.surface.Surface((defaultWindowSize[0], defaultWindowSize[1] - defaultWindowHead))
+    # resultSurface = pygame.surface.Surface((defaultWindowSize[0], defaultWindowSize[1] - defaultWindowHead))
+    resultSurface = pygame.surface.Surface((width, height))
     resultSurface.blit(resultPageBackground, (0, 0))
 
     resultNumText = resultNumFont.render(str(boomID), True, resultNumFontColor)
@@ -192,31 +195,247 @@ def Result_page(width, height, mousePos, mousePress, event, boomID):
     resultSurface.blit(onceAgainButtonImage, (width / 2 - resultButtonSize[0] / 2,
                                               height - onceAgainButtonMargin_bottom - resultButtonSize[1]))
     resultSurface.blit(choosePunishmentButtonImage, (width / 2 - resultButtonSize[0] / 2,
-                                              height - choosePunishmentButtonMargin_bottom - resultButtonSize[1]))
+                                                     height - choosePunishmentButtonMargin_bottom - resultButtonSize[
+                                                         1]))
     resultSurface.blit(shareToFriendsButtonImage, (width / 2 - resultButtonSize[0] / 2,
-                                              height - shareToFriendsButtonMargin_bottom - resultButtonSize[1]))
+                                                   height - shareToFriendsButtonMargin_bottom - resultButtonSize[1]))
 
     # 按钮功能
     newGame = False
-    if width / 2 - resultButtonSize[0] / 2 < mousePos[0] < width / 2 - resultButtonSize[0] / 2 + resultButtonSize[0] and mousePress[0]:
-        if height - onceAgainButtonMargin_bottom - resultButtonSize[1] < mousePos[1] < height - onceAgainButtonMargin_bottom and not resultButtonClick:
-            gameRecovery()
-            newGame = True
-            resultButtonClick = True
-        elif height - choosePunishmentButtonMargin_bottom - resultButtonSize[1] < mousePos[1] < height - choosePunishmentButtonMargin_bottom and not resultButtonClick:
-            toast("自罚三杯叭，你干了，我随意")
-            resultButtonClick = True
-        elif height - shareToFriendsButtonMargin_bottom - resultButtonSize[1] < mousePos[1] < height - shareToFriendsButtonMargin_bottom and not resultButtonClick:
-            toast("诶呦，不是哥们儿？你分享啥啊？分享你咋输的嘛……")
-            resultButtonClick = True
-    else:
-        resultButtonClick = False
-
-
+    punishment = False
+    if not DONT_MOVE:
+        if width / 2 - resultButtonSize[0] / 2 < mousePos[0] < width / 2 - resultButtonSize[0] / 2 + resultButtonSize[
+            0] and mousePress[0]:
+            if height - onceAgainButtonMargin_bottom - resultButtonSize[1] < mousePos[
+                1] < height - onceAgainButtonMargin_bottom and not resultButtonClick:
+                gameRecovery()
+                newGame = True
+                resultButtonClick = True
+            elif height - choosePunishmentButtonMargin_bottom - resultButtonSize[1] < mousePos[
+                1] < height - choosePunishmentButtonMargin_bottom and not resultButtonClick:
+                punishment = True
+                resultButtonClick = True
+            elif height - shareToFriendsButtonMargin_bottom - resultButtonSize[1] < mousePos[
+                1] < height - shareToFriendsButtonMargin_bottom and not resultButtonClick:
+                toast("诶呦，不是哥们儿？你分享啥啊？分享你咋输的嘛……")
+                resultButtonClick = True
+        else:
+            resultButtonClick = False
 
     return {
-        'surface':pygame.transform.smoothscale(resultSurface, (width, height)),
-        'newGame':newGame
+        'surface': pygame.transform.smoothscale(resultSurface, (width, height)),
+        'newGame': newGame,
+        'punishment': punishment
+    }
+
+
+# 我操啊用户怎么这么坏啊还要真的选惩罚
+# 我不想做了呜呜呜呜呜呜呜呜呜呜呜呜呜
+# 哇啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊
+# 惩罚功能狗都不
+# 做！做的就是惩罚功能！
+# 我精神状态挺好的啊哈哈哈哈哈哈哈哈哈哈
+# 我好状态挺神精的啊啊啊啊啊啊啊啊啊啊啊
+punishmentPageTitle = pygame.image.load(get_file("files\\PunishmentPage\\title.png"))  # 标题
+punishment_button_background = pygame.image.load(get_file("files\\PunishmentPage\\BTN_BG.png"))  # 按钮
+punishment_button_hongBao = pygame.image.load(get_file("files\\PunishmentPage\\1.png"))
+punishment_button_heJiu = pygame.image.load(get_file("files\\PunishmentPage\\2.png"))
+punishment_button_zhenXinHua = pygame.image.load(get_file("files\\PunishmentPage\\3.png"))
+punishment_button_daMaoXian = pygame.image.load(get_file("files\\PunishmentPage\\4.png"))
+punishment_window = pygame.image.load(get_file("files\\PunishmentPage\\Window.png"))
+punishment_windowCloseButton = pygame.image.load(get_file("files\\PunishmentPage\\closeButton.png"))
+
+punishmentFont = pygame.font.Font(punishmentFontPath, punishmentFontSize)
+
+showPunishmentWindow = False
+showPunishmentTime = 0
+punishmentPath = ''
+punishmentContant = ''
+
+
+def Punishment_page(width, height, mousePos, mousePress, event, background_Alpha, DONT_MOVE=False):
+    global showPunishmentTime, showPunishmentWindow, punishmentPath
+
+    def button(pos, mouse_pos, background: pygame.Surface, Contents, events: list,
+               surface: pygame.Surface, dont_move, common=False):
+        head_height = defaultWindowHead
+        # 显示按钮
+        surface.blit(background, pos)  # 背景
+        if Contents is not None:
+            contentPos = (pos[0] + (background.get_width() - Contents.get_width()) // 2,
+                          pos[1] + (background.get_height() - Contents.get_height()) // 2)
+            surface.blit(Contents, contentPos)  # 内容
+
+        # 如果禁止交互
+        if dont_move:
+            return False
+
+        # 定义碰撞区域
+        if not common:
+            # 固定尺寸
+            left = pos[0] + 12
+            top = pos[1] + 12
+            width = 120
+            height = 160
+        else:
+            # 通用模式
+            left = pos[0]
+            top = pos[1]
+            width = background.get_width()
+            height = background.get_height()
+
+        # 检查事件
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 左键
+                # 将event.pos转换为与mouse_pos相同的坐标系（减去head高度）
+                adjusted_pos = (event.pos[0], event.pos[1] - head_height)
+
+                # 检查点击是否在碰撞区域内
+                if (left <= adjusted_pos[0] <= left + width and
+                        top <= adjusted_pos[1] <= top + height):
+                    return True
+
+        return False
+
+    # 随机惩罚弹窗
+    def punishmentWindow(rate):
+        result_surface = punishment_window.copy()
+
+        # 显示文字
+        text = create_advanced_text_surface(punishmentContant, punishmentFont, punishmentFontColor, (215, 95))
+        result_surface.blit(text, (40, 60))
+
+        # _______动效_______
+        y = -1.1 * (rate ** 2) + 1.6 * rate + 0.5
+
+        tmpSurface = pygame.transform.rotate(result_surface, -(90 * (1 - y)))
+        tmpSurface.set_alpha(255 * rate)
+
+        sizeRate = 0.1 * (rate ** 2) + 0.2 * rate + 0.7
+        size = (tmpSurface.get_size()[0] * sizeRate, tmpSurface.get_size()[1] * sizeRate)
+        tmpSurface = pygame.transform.smoothscale(tmpSurface, size)
+        # _________________
+
+        return tmpSurface
+
+    def getPunishment():
+        """获取随机惩罚内容，带错误处理"""
+        global punishmentContant
+
+        try:
+            # 读取文件
+            with open(punishmentPath, 'r', encoding="UTF-8") as f:
+                lines = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
+
+            # 检查是否有内容
+            if not lines:
+                error_msg = "惩罚文件为空"
+                punishmentContant = error_msg
+                toast(error_msg)
+                return error_msg
+
+            # 选择惩罚
+            if len(lines) == 1:
+                result = lines[0]
+            else:
+                available = [item for item in lines if item != punishmentContant]
+                result = random.choice(available if available else lines)
+
+            # 更新全局变量
+            punishmentContant = result
+
+            # 可选：显示成功提示
+            # toast(f"惩罚已更新: {len(lines)}个可用选项")
+
+            return result
+
+        except FileNotFoundError:
+            error_msg = "找不到惩罚文件"
+        except PermissionError:
+            error_msg = "无文件读取权限"
+        except Exception as e:
+            error_msg = f"读取错误: {str(e)}"
+
+        # 错误处理
+        punishmentContant = error_msg
+        toast(error_msg)
+        return error_msg
+
+    resultSurface = pygame.surface.Surface((width, height))
+    resultSurface.blit(punishmentPageBackground, (0, 0))
+
+    # 显示标题
+    resultSurface.blit(punishmentPageTitle, (80, 135))
+
+    btn_hongBao = button((65, 175), mousePos, punishment_button_background, punishment_button_hongBao, event,
+                         resultSurface, (DONT_MOVE or showPunishmentWindow))
+    btn_heJiu = button((210, 175), mousePos, punishment_button_background, punishment_button_heJiu, event,
+                       resultSurface, (DONT_MOVE or showPunishmentWindow))
+    btn_zhenXinHua = button((65, 355), mousePos, punishment_button_background, punishment_button_zhenXinHua, event,
+                            resultSurface, (DONT_MOVE or showPunishmentWindow))
+    btn_daMaoXian = button((210, 355), mousePos, punishment_button_background, punishment_button_daMaoXian, event,
+                           resultSurface, (DONT_MOVE or showPunishmentWindow))
+
+    # 触发弹窗按钮
+    if btn_hongBao:
+        showPunishmentTime = time.time()
+        showPunishmentWindow = True
+        punishmentPath = get_file("files\\PunishmentPage\\punishments\\hong_bao.txt")
+        getPunishment()
+    elif btn_heJiu:
+        showPunishmentTime = time.time()
+        showPunishmentWindow = True
+        punishmentPath = get_file("files\\PunishmentPage\\punishments\\he_jiu.txt")
+        getPunishment()
+    elif btn_zhenXinHua:
+        showPunishmentTime = time.time()
+        showPunishmentWindow = True
+        punishmentPath = get_file("files\\PunishmentPage\\punishments\\zhen_xin_hua.txt")
+        getPunishment()
+    elif btn_daMaoXian:
+        showPunishmentTime = time.time()
+        showPunishmentWindow = True
+        punishmentPath = get_file("files\\PunishmentPage\\punishments\\da_mao_xian.txt")
+        getPunishment()
+
+    # 弹窗
+    if showPunishmentWindow:
+        # 黑色遮罩
+        t = pygame.surface.Surface(resultSurface.get_size())
+        t.set_alpha(200)
+        resultSurface.blit(t, (0, 0))
+
+        # 弹窗
+        rate = (time.time() - showPunishmentTime) / punishmentWindowANI_Time
+        if rate > 1:
+            rate = 1
+
+        t = punishmentWindow(rate)
+        windowPos = (width / 2 - t.get_width() / 2, height / 2 - t.get_height() / 2 - 30 + (50 * (1 - rate)))
+        resultSurface.blit(t, windowPos)
+
+        # 换一个按钮功能
+        if rate >= 1:  # 动效播放完毕 可以响应
+            left = 100 + windowPos[0]
+            top = 155 + windowPos[1]
+            width = 100
+            height = 45
+
+            for e in event:
+                if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:  # 按下左键
+                    adjusted_pos = (e.pos[0], e.pos[1] - defaultWindowHead)
+
+                    # 检查是否在区域内
+                    if left <= adjusted_pos[0] <= left + width and top <= adjusted_pos[1] <= top + height:
+                        getPunishment()
+
+        # 关闭按钮
+        btn_Close = button((190, 480), mousePos, punishment_windowCloseButton, None, event, resultSurface, False, True)
+        if btn_Close:
+            showPunishmentWindow = False
+
+    return {
+        'surface': resultSurface
     }
 
 
